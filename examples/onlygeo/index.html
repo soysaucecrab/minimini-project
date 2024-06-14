@@ -1,26 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
-    <title>real_data</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Terrain Export</title>
 </head>
 <body>
     <canvas id="canvas" width="960" height="640"></canvas>
-
+    <button id="downloadBtn">Download STL</button>
     <script src="../deps/three/build/three.min.js"></script>
     <script src="../deps/three/examples/js/controls/OrbitControls.js"></script>
     <script src="../deps/three/examples/js/libs/stats.min.js"></script>
-    <script src="../deps/three/examples/js/exporters/STLExporter.js"></script> <!-- STLExporter 추가 -->
+    <!-- <script src="../deps/three/examples/js/controls/STLExporter.js"></script> STLExporter 추가 -->
     <script src="../../dist/three-geo.min.js"></script>
-    <script type="module" src="./test.js"></script>
-
     <script type="module">
-    (async () => {
-        
+        // Define STLExporter class directly in script
+        class STLExporter {
+            parse( scene, options = {} ) {
+                options = Object.assign( {
+                    binary: false
+                }, options );
+
+                const binary = options.binary;
+
+                const objects = [];
+                let triangles = 0;
+
+                scene.traverse( function ( object ) {
+                    if ( object.isMesh ) {
+                        const geometry = object.geometry;
+                        const index = geometry.index;
+                        const positionAttribute = geometry.getAttribute( 'position' );
+
+                        triangles += ( index !== null ) ? ( index.count / 3 ) : ( positionAttribute.count / 3 );
+
+                        objects.push( {
+                            object3d: object,
+                            geometry: geometry
+                        } );
+                    }
+                } );
+
+                let output;
+                let offset = 80; // skip header
+
+                if ( binary === true ) {
+                    const bufferLength = triangles * 2 + triangles * 3 * 4 * 4 + 80 + 4;
+                    const arrayBuffer = new ArrayBuffer( bufferLength );
+                    output = new DataView( arrayBuffer );
+                    output.setUint32( offset, triangles, true ); offset += 4;
+                } else {
+                    output = '';
+                    output += 'solid exported\n';
+                }
+
+                const vA = new THREE.Vector3();
+                const vB = new THREE.Vector3();
+                const vC = new THREE.Vector3();
+                const cb = new THREE.Vector3();
+                const ab = new THREE.Vector3();
+                const normal = new THREE.Vector3();
+
+                for ( let i = 0, il = objects.length; i < il; i ++ ) {
+                    const object = objects[ i ].object3d;
+                    const geometry = objects[ i ].geometry;
+
+                    const index = geometry.index;
+                    const positionAttribute = geometry.getAttribute( 'position' );
+
+                    if ( index !== null ) {
+                        // indexed geometry
+                        for ( let j = 0; j < index.count; j += 3 ) {
+                            const a = index.getX( j + 0 );
+                            const b = index.getX( j + 1 );
+                            const c = index.getX( j + 2 );
+
+                            writeFace( a, b, c, positionAttribute, object );
+                        }
+                    } else {
+                        // non-indexed geometry
+                        for ( let j = 0; j < positionAttribute.count; j += 3 ) {
+                            const a = j + 0;
+                            const b = j + 1;
+                            const c = j + 2;
+
+                            writeFace( a, b, c, positionAttribute, object );
+                        }
+                    }
+                }
+
+                if ( binary === false ) {
+                    output += 'endsolid exported\n';
+                }
+
+                return output;
+
+                function writeFace( a, b, c, positionAttribute, object ) {
+                    vA.fromBufferAttribute( positionAttribute, a );
+                    vB.fromBufferAttribute( positionAttribute, b );
+                    vC.fromBufferAttribute( positionAttribute, c );
+
+                    if ( object.isSkinnedMesh === true ) {
+                        object.applyBoneTransform( a, vA );
+                        object.applyBoneTransform( b, vB );
+                        object.applyBoneTransform( c, vC );
+                    }
+
+                    vA.applyMatrix4( object.matrixWorld );
+                    vB.applyMatrix4( object.matrixWorld );
+                    vC.applyMatrix4( object.matrixWorld );
+
+                    writeNormal( vA, vB, vC );
+
+                    writeVertex( vA );
+                    writeVertex( vB );
+                    writeVertex( vC );
+
+                    if ( binary === true ) {
+                        output.setUint16( offset, 0, true ); offset += 2;
+                    } else {
+                        output += '\t\tendloop\n';
+                        output += '\tendfacet\n';
+                    }
+                }
+
+                function writeNormal( vA, vB, vC ) {
+                    cb.subVectors( vC, vB );
+                    ab.subVectors( vA, vB );
+                    cb.cross( ab ).normalize();
+
+                    normal.copy( cb ).normalize();
+
+                    if ( binary === true ) {
+                        output.setFloat32( offset, normal.x, true ); offset += 4;
+                        output.setFloat32( offset, normal.y, true ); offset += 4;
+                        output.setFloat32( offset, normal.z, true ); offset += 4;
+                    } else {
+                        output += '\tfacet normal ' + normal.x + ' ' + normal.y + ' ' + normal.z + '\n';
+                        output += '\t\touter loop\n';
+                    }
+                }
+
+                function writeVertex( vertex ) {
+                    if ( binary === true ) {
+                        output.setFloat32( offset, vertex.x, true ); offset += 4;
+                        output.setFloat32( offset, vertex.y, true ); offset += 4;
+                        output.setFloat32( offset, vertex.z, true ); offset += 4;
+                    } else {
+                        output += '\t\t\tvertex ' + vertex.x + ' ' + vertex.y + ' ' + vertex.z + '\n';
+                    }
+                }
+            }
+        }
+
+        // Your main script
         THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
 
         const canvas = document.getElementById("canvas");
-        const camera = new THREE.PerspectiveCamera(75, canvas.width/canvas.height, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(75, canvas.width / canvas.height, 0.1, 1000);
         camera.position.set(0, 0, 1.5);
 
         const renderer = new THREE.WebGLRenderer({ canvas });
@@ -29,17 +167,14 @@
         const scene = new THREE.Scene();
 
         const walls = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.BoxBufferGeometry(1, 1, 1)),
-            new THREE.LineBasicMaterial({color: 0xcccccc}));
+            new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
+            new THREE.LineBasicMaterial({ color: 0xcccccc })
+        );
         walls.position.set(0, 0, 0);
 
         scene.add(walls);
 
-        const stats = new Stats();
-        stats.showPanel(1); // 0: fps, 1: ms, 2: mb, 3+: custom
-        document.body.appendChild(stats.dom);
         const render = () => {
-            stats.update();
             renderer.render(scene, camera);
         };
 
@@ -57,41 +192,47 @@
             alert(warning);
             throw warning;
         }
+        console.log("ping");
 
-        const spot = [37.50000, 130.86667]; // 예시 좌표 (위도, 경도)
-        const rad = 10;           // 예시 반경 (km)
-        const terrain = await tgeo.getTerrainRgb(
-            spot,              // [lat, lng]
-            rad,               // radius of bounding circle (km)
-            12);               // zoom resolution
+        async function loadTerrain() {
+            try {
+                const spot = [37.50000, 130.86667]; // 예시 좌표 (위도, 경도)
+                const rad = 10;           // 예시 반경 (km)
+                const terrain = await tgeo.getTerrainRgb(
+                    spot,              // [lat, lng]
+                    rad,               // radius of bounding circle (km)
+                    12);               // zoom resolution
 
-        scene.add(terrain);
+                scene.add(terrain);
+                console.log("added");
 
-        // STL 파일로 지형을 다운로드하는 함수 추가
-        const downloadSTL = () => {
-            const exporter = new THREE.STLExporter();
-            const stlString = exporter.parse(terrain);
+                // STL 파일로 지형을 다운로드하는 함수 추가
+                const downloadSTL = () => {
+                    const exporter = new STLExporter();
+                    const stlString = exporter.parse(terrain);
 
-            const blob = new Blob([stlString], { type: 'text/plain' });
-            const link = document.createElement('a');
-            link.style.display = 'none';
-            document.body.appendChild(link);
+                    const blob = new Blob([stlString], { type: 'text/plain' });
+                    const link = document.createElement('a');
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
 
-            link.href = URL.createObjectURL(blob);
-            link.download = 'terrain.stl';
-            link.click();
+                    link.href = URL.createObjectURL(blob);
+                    link.download = 'terrain.stl';
+                    link.click();
 
-            document.body.removeChild(link);
-        };
+                    document.body.removeChild(link);
+                };
 
-        // 다운로드 버튼 추가
-        const button = document.createElement('button');
-        button.innerText = 'Download STL';
-        button.onclick = downloadSTL;
-        document.body.appendChild(button);
+                document.getElementById('downloadBtn').onclick = downloadSTL;
 
-        render();
-    })();
+                render();
+            } catch (error) {
+                console.error('Error loading terrain:', error);
+            }
+        }
+
+        loadTerrain();
+
     </script>
 </body>
 </html>
