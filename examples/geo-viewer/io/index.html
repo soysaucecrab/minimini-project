@@ -29,7 +29,55 @@
     <script src="../../deps/three/examples/js/controls/OrbitControls.js"></script>
     <script type="module">
         import App from './app.esm.js';
-        const _ = new App();
-    </script>
+        const app = new App();
+
+        //url 변경 감지
+        // URL에서 lat와 lng 값을 읽어오는 함수
+        function getLatLng() {
+            const url = new URL(window.location.href);
+            const params = new URLSearchParams(url.search);
+            const lat = params.get('lat');
+            const lng = params.get('lng');
+            
+            // lat와 lng 값을 출력
+            console.log(`Latitude: ${lat}, Longitude: ${lng}`);
+        }
+
+        // 페이지가 로드될 때 URL에서 lat과 lng 값을 읽어옵니다.
+        getLatLng();
+
+        // URL이 변경될 때마다 lat과 lng 값을 업데이트합니다.
+        window.addEventListener('popstate', () => {
+            getLatLng();
+        });
+
+        // 예시: URL 업데이트 함수
+        function updateURL(lat, lng) {
+            const newUrl = `http://127.0.0.1:5500/examples/geo-viewer/io/index.html?lat=${lat}&lng=${lng}`;
+            window.history.pushState({ lat, lng }, '', newUrl);
+            getLatLng(); // URL 업데이트 후 lat과 lng 값을 읽어옵니다.
+        }
+        //--------------------------------------------------------------------------------------------//
+
+        // BoxGeometry와 MeshBasicMaterial을 사용하여 큐브 메쉬 생성
+        const wallsGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+        const wallsMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // 녹색
+        const walls = new THREE.Mesh(wallsGeometry, wallsMaterial);
+        
+        app.scene.add(walls);
+
+        
+
+        const render = () => {
+            app.renderer.render(app.scene, app.camera);
+        };
+
+        render();
+
+
+        
+        
+
+        </script>
 </body>
 </html>
