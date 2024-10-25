@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+    <title>real_data</title>
+</head>
+<body>
+    <canvas id="canvas" width="960" height="640"></canvas>
+
+    <script src="../deps/three/build/three.min.js"></script>
+    <script src="../deps/three/examples/js/controls/OrbitControls.js"></script>
+    <script src="../deps/three/examples/js/libs/stats.min.js"></script>
+
+    <script src="../../dist/three-geo.min.js"></script>
+    <script type="module" src="./test.js"></script>
+
+    <script type="module">
+    (async () => {
+        /*
+            Data Read Code
+        */
+        let cth;
+
+        // Cloud Height
+        try {
+            const response = await fetch('./cth.csv');
+            const csvData = await response.text();
+
+            const rows = csvData.split('\n');
+            const jsonArray1 = rows.map(row => row.split(',').map(element => parseFloat(element)));
+            cth = jsonArray1 ;
+        } catch (error) {
+            console.error('Error:', error);
+        }
+
+        let cot;
+
+        // Cloud Thickness
+        try {
+            const response = await fetch('./cot.csv');
+            const csvData = await response.text();
+
+            const rows = csvData.split('\n');
+            const jsonArray2 = rows.map(row => row.split(',').map(element => parseFloat(element)));
+
+            cot = jsonArray2;
+        } catch (error) {
+            console.error('Error:', error);
+        }
+        console.log(cth);
+        /*
+            Clouds Calculate Code
+        */
+       // 경도 1도는 90km로, 위도 1도는 110km로 간주
+        const spot =[37.066535,126.0779692];
+        const rad =50;
+        const radlat=rad/110;
+        const radlng=rad/90;
+
+        const spots = [[spot[1]-radlng],[spot[0]+radlat]];
+
+        const pix_lng = parseInt((spot[1]-125-radlng)/0.0211);
+        const pix_lat = parseInt((43-spot[0]-radlat)/0.0184);
+
+        const pix_radlng = parseInt((2*rad/90/0.0211));
+        const pix_radlat = parseInt((2*rad/110/0.0184));
+
+        //                       위도                                                     경도
+        let cth_result = cth.slice(541-pix_lat-pix_radlat, 541-pix_lat).map(row => row.slice(pix_lng, pix_lng+pix_radlng));
+        let cot_result = cot.slice(541-pix_lat-pix_radlat, 541-pix_lat).map(row => row.slice(pix_lng, pix_lng+pix_radlng));
+
+        const onepix_lng = 1/pix_radlng;
+        const onepix_lat = 1/pix_radlat;
+
+        /*
+            Map Generation Code
+        */
+       // 경도 1도는 90km로, 위도 1도는 110km로 간주
+        THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
+
+        const canvas = document.getElementById("canvas");
+        const camera = new THREE.PerspectiveCamera(75, canvas.width/canvas.height, 0.1, 1000);
+        camera.position.set(0, 0, 1.5);
+
+        const renderer = new THREE.WebGLRenderer({ canvas });
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        const walls = new THREE.LineSegments(
+            new THREE.EdgesGeometry(new THREE.BoxBufferGeometry(1, 1, 1)),
+            new THREE.LineBasicMaterial({color: 0xcccccc}));
+        walls.position.set(0, 0, 0);
+
+        scene.add(walls);
+
+        const stats = new Stats();
+        stats.showPanel(1); // 0: fps, 1: ms, 2: mb, 3+: custom
+        document.body.appendChild(stats.dom);
+        const render = () => {
+            stats.update();
+            renderer.render(scene, camera);
+        };
+
+        controls.addEventListener('change', render);
+        render(); // first time
+
+        const ioToken = 'pk.eyJ1IjoiamRldmVsIiwiYSI6ImNqemFwaGJoZjAyc3MzbXA1OGNuODBxa2EifQ.7M__SgfWZGJuEiSqbBXdoQ';
+
+        const tgeo = new ThreeGeo({
+            tokenMapbox: 'pk.eyJ1Ijoic295c2F1Y2VjcmFiIiwiYSI6ImNscGViNnk3NDE3YmcyanFybzZmNDc4ZjEifQ.Gw-72irSpUY1oHYSqoTz8Q', // <---- set your Mapbox API token here
+        });
+
+        if (!window.location.origin.startsWith('https://w3reality.github.io') && tgeo.tokenMapbox === ioToken) {
+            const warning = 'Please set your Mapbox API token in ThreeGeo constructor.';
+            alert(warning);
+            throw warning;
+        }
+
+        const terrain = await tgeo.getTerrainRgb(
+            spot,              // [lat, lng]
+            rad,               // radius of bounding circle (km)
+            12);               // zoom resolution
+
+        scene.add(terrain);
+
+
+             
+
+
+
+        /*
+            Cloud Generation Code
+        */
+        class cloud {
+            constructor(x,y,z,c){
+                this.x=x;
+                this.y=y;
+                this.z=z;
+                const box1Geometry = new THREE.BoxGeometry(1/(rad), 1/(rad), c);
+                const box1Material = new THREE.MeshBasicMaterial( { color: 0xffffff, transparent: true, opacity: 0.3 } );
+                const box_1 = new THREE.Mesh(box1Geometry, box1Material);
+                box_1.position.set(this.x, this.y, this.z);
+                scene.add(box_1);
+            }
+        }
+        console.log(cth_result);
+        let clouds = [];
+        let i=0;
+        let j=0
+        let c=0;
+        //push할때 : 경도(+), 위도(+), 높이(+)임
+        console.log(pix_radlat);
+        for(i=0; i<pix_radlat; i++){
+            for(j=0;j<pix_radlng;j++){
+                if((cth_result[i][j]/(2*rad))!=NaN){
+                    let co = cot_result[i][j]/(2*rad)/1000;
+                    if(co>0.0001){
+                        co=0.0001;
+                    }
+                    try {
+                    clouds.push(new cloud((j/pix_radlng)-0.5+0.002,(i/pix_radlat)-0.5+0.002,cth_result[i][j]/(2*rad),co*150))
+                    }
+                    catch{
+                        continue;
+                    }
+                }
+            }
+        }
+        
+        
+
+
+
+
+        render();
+    })();
+    </script>
+</body>
+</html>
