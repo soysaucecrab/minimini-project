@@ -1,180 +1,506 @@
-<!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
-    <title>real_data</title>
+    <style>.lil-gui {
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  line-height: 1;
+  font-weight: normal;
+  font-style: normal;
+  text-align: left;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  --background-color: #1f1f1f;
+  --text-color: #ebebeb;
+  --title-background-color: #111111;
+  --title-text-color: #ebebeb;
+  --widget-color: #424242;
+  --hover-color: #4f4f4f;
+  --focus-color: #595959;
+  --number-color: #2cc9ff;
+  --string-color: #a2db3c;
+  --font-size: 11px;
+  --input-font-size: 11px;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-family-mono: Menlo, Monaco, Consolas, "Droid Sans Mono", monospace;
+  --padding: 4px;
+  --spacing: 4px;
+  --widget-height: 20px;
+  --name-width: 45%;
+  --slider-knob-width: 2px;
+  --slider-input-width: 27%;
+  --color-input-width: 27%;
+  --slider-input-min-width: 45px;
+  --color-input-min-width: 45px;
+  --folder-indent: 7px;
+  --widget-padding: 0 0 0 3px;
+  --widget-border-radius: 2px;
+  --checkbox-size: calc(0.75 * var(--widget-height));
+  --scrollbar-width: 5px;
+}
+.lil-gui, .lil-gui * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+.lil-gui.root {
+  width: var(--width, 245px);
+  display: flex;
+  flex-direction: column;
+}
+.lil-gui.root > .title {
+  background: var(--title-background-color);
+  color: var(--title-text-color);
+}
+.lil-gui.root > .children {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.lil-gui.root > .children::-webkit-scrollbar {
+  width: var(--scrollbar-width);
+  height: var(--scrollbar-width);
+  background: var(--background-color);
+}
+.lil-gui.root > .children::-webkit-scrollbar-thumb {
+  border-radius: var(--scrollbar-width);
+  background: var(--focus-color);
+}
+@media (pointer: coarse) {
+  .lil-gui.allow-touch-styles {
+    --widget-height: 28px;
+    --padding: 6px;
+    --spacing: 6px;
+    --font-size: 13px;
+    --input-font-size: 16px;
+    --folder-indent: 10px;
+    --scrollbar-width: 7px;
+    --slider-input-min-width: 50px;
+    --color-input-min-width: 65px;
+  }
+}
+.lil-gui.force-touch-styles {
+  --widget-height: 28px;
+  --padding: 6px;
+  --spacing: 6px;
+  --font-size: 13px;
+  --input-font-size: 16px;
+  --folder-indent: 10px;
+  --scrollbar-width: 7px;
+  --slider-input-min-width: 50px;
+  --color-input-min-width: 65px;
+}
+.lil-gui.autoPlace {
+  max-height: 100%;
+  position: fixed;
+  top: 0;
+  right: 15px;
+  z-index: 1001;
+}
+
+.lil-gui .controller {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--padding);
+  margin: var(--spacing) 0;
+}
+.lil-gui .controller.disabled {
+  opacity: 0.5;
+}
+.lil-gui .controller.disabled, .lil-gui .controller.disabled * {
+  pointer-events: none !important;
+}
+.lil-gui .controller > .name {
+  min-width: var(--name-width);
+  flex-shrink: 0;
+  white-space: pre;
+  padding-right: var(--spacing);
+  line-height: var(--widget-height);
+}
+.lil-gui .controller .widget {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--widget-height);
+}
+.lil-gui .controller.string input {
+  color: var(--string-color);
+}
+.lil-gui .controller.boolean .widget {
+  cursor: pointer;
+}
+.lil-gui .controller.color .display {
+  width: 100%;
+  height: var(--widget-height);
+  border-radius: var(--widget-border-radius);
+  position: relative;
+}
+@media (hover: hover) {
+  .lil-gui .controller.color .display:hover:before {
+    content: " ";
+    display: block;
+    position: absolute;
+    border-radius: var(--widget-border-radius);
+    border: 1px solid #fff9;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+  }
+}
+.lil-gui .controller.color input[type=color] {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.lil-gui .controller.color input[type=text] {
+  margin-left: var(--spacing);
+  font-family: var(--font-family-mono);
+  min-width: var(--color-input-min-width);
+  width: var(--color-input-width);
+  flex-shrink: 0;
+}
+.lil-gui .controller.option select {
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+  max-width: 100%;
+}
+.lil-gui .controller.option .display {
+  position: relative;
+  pointer-events: none;
+  border-radius: var(--widget-border-radius);
+  height: var(--widget-height);
+  line-height: var(--widget-height);
+  max-width: 100%;
+  overflow: hidden;
+  word-break: break-all;
+  padding-left: 0.55em;
+  padding-right: 1.75em;
+  background: var(--widget-color);
+}
+@media (hover: hover) {
+  .lil-gui .controller.option .display.focus {
+    background: var(--focus-color);
+  }
+}
+.lil-gui .controller.option .display.active {
+  background: var(--focus-color);
+}
+.lil-gui .controller.option .display:after {
+  font-family: "lil-gui";
+  content: "↕";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  padding-right: 0.375em;
+}
+.lil-gui .controller.option .widget,
+.lil-gui .controller.option select {
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .lil-gui .controller.option .widget:hover .display {
+    background: var(--hover-color);
+  }
+}
+.lil-gui .controller.number input {
+  color: var(--number-color);
+}
+.lil-gui .controller.number.hasSlider input {
+  margin-left: var(--spacing);
+  width: var(--slider-input-width);
+  min-width: var(--slider-input-min-width);
+  flex-shrink: 0;
+}
+.lil-gui .controller.number .slider {
+  width: 100%;
+  height: var(--widget-height);
+  background-color: var(--widget-color);
+  border-radius: var(--widget-border-radius);
+  padding-right: var(--slider-knob-width);
+  overflow: hidden;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+@media (hover: hover) {
+  .lil-gui .controller.number .slider:hover {
+    background-color: var(--hover-color);
+  }
+}
+.lil-gui .controller.number .slider.active {
+  background-color: var(--focus-color);
+}
+.lil-gui .controller.number .slider.active .fill {
+  opacity: 0.95;
+}
+.lil-gui .controller.number .fill {
+  height: 100%;
+  border-right: var(--slider-knob-width) solid var(--number-color);
+  box-sizing: content-box;
+}
+
+.lil-gui-dragging .lil-gui {
+  --hover-color: var(--widget-color);
+}
+.lil-gui-dragging * {
+  cursor: ew-resize !important;
+}
+
+.lil-gui-dragging.lil-gui-vertical * {
+  cursor: ns-resize !important;
+}
+
+.lil-gui .title {
+  --title-height: calc(var(--widget-height) + var(--spacing) * 1.25);
+  height: var(--title-height);
+  line-height: calc(var(--title-height) - 4px);
+  font-weight: 600;
+  padding: 0 var(--padding);
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  outline: none;
+  text-decoration-skip: objects;
+}
+.lil-gui .title:before {
+  font-family: "lil-gui";
+  content: "▾";
+  padding-right: 2px;
+  display: inline-block;
+}
+.lil-gui .title:active {
+  background: var(--title-background-color);
+  opacity: 0.75;
+}
+@media (hover: hover) {
+  body:not(.lil-gui-dragging) .lil-gui .title:hover {
+    background: var(--title-background-color);
+    opacity: 0.85;
+  }
+  .lil-gui .title:focus {
+    text-decoration: underline var(--focus-color);
+  }
+}
+.lil-gui.root > .title:focus {
+  text-decoration: none !important;
+}
+.lil-gui.closed > .title:before {
+  content: "▸";
+}
+.lil-gui.closed > .children {
+  transform: translateY(-7px);
+  opacity: 0;
+}
+.lil-gui.closed:not(.transition) > .children {
+  display: none;
+}
+.lil-gui.transition > .children {
+  transition-duration: 300ms;
+  transition-property: height, opacity, transform;
+  transition-timing-function: cubic-bezier(0.2, 0.6, 0.35, 1);
+  overflow: hidden;
+  pointer-events: none;
+}
+.lil-gui .children:empty:before {
+  content: "Empty";
+  padding: 0 var(--padding);
+  margin: var(--spacing) 0;
+  display: block;
+  height: var(--widget-height);
+  font-style: italic;
+  line-height: var(--widget-height);
+  opacity: 0.5;
+}
+.lil-gui.root > .children > .lil-gui > .title {
+  border: 0 solid var(--widget-color);
+  border-width: 1px 0;
+  transition: border-color 300ms;
+}
+.lil-gui.root > .children > .lil-gui.closed > .title {
+  border-bottom-color: transparent;
+}
+.lil-gui + .controller {
+  border-top: 1px solid var(--widget-color);
+  margin-top: 0;
+  padding-top: var(--spacing);
+}
+.lil-gui .lil-gui .lil-gui > .title {
+  border: none;
+}
+.lil-gui .lil-gui .lil-gui > .children {
+  border: none;
+  margin-left: var(--folder-indent);
+  border-left: 2px solid var(--widget-color);
+}
+.lil-gui .lil-gui .controller {
+  border: none;
+}
+
+.lil-gui input {
+  -webkit-tap-highlight-color: transparent;
+  border: 0;
+  outline: none;
+  font-family: var(--font-family);
+  font-size: var(--input-font-size);
+  border-radius: var(--widget-border-radius);
+  height: var(--widget-height);
+  background: var(--widget-color);
+  color: var(--text-color);
+  width: 100%;
+}
+@media (hover: hover) {
+  .lil-gui input:hover {
+    background: var(--hover-color);
+  }
+  .lil-gui input:active {
+    background: var(--focus-color);
+  }
+}
+.lil-gui input:disabled {
+  opacity: 1;
+}
+.lil-gui input[type=text],
+.lil-gui input[type=number] {
+  padding: var(--widget-padding);
+}
+.lil-gui input[type=text]:focus,
+.lil-gui input[type=number]:focus {
+  background: var(--focus-color);
+}
+.lil-gui input::-webkit-outer-spin-button,
+.lil-gui input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.lil-gui input[type=number] {
+  -moz-appearance: textfield;
+}
+.lil-gui input[type=checkbox] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: var(--checkbox-size);
+  width: var(--checkbox-size);
+  border-radius: var(--widget-border-radius);
+  text-align: center;
+  cursor: pointer;
+}
+.lil-gui input[type=checkbox]:checked:before {
+  font-family: "lil-gui";
+  content: "✓";
+  font-size: var(--checkbox-size);
+  line-height: var(--checkbox-size);
+}
+@media (hover: hover) {
+  .lil-gui input[type=checkbox]:focus {
+    box-shadow: inset 0 0 0 1px var(--focus-color);
+  }
+}
+.lil-gui button {
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  cursor: pointer;
+  font-family: var(--font-family);
+  font-size: var(--font-size);
+  color: var(--text-color);
+  width: 100%;
+  height: var(--widget-height);
+  text-transform: none;
+  background: var(--widget-color);
+  border-radius: var(--widget-border-radius);
+  border: 1px solid var(--widget-color);
+  text-align: center;
+  line-height: calc(var(--widget-height) - 4px);
+}
+@media (hover: hover) {
+  .lil-gui button:hover {
+    background: var(--hover-color);
+    border-color: var(--hover-color);
+  }
+  .lil-gui button:focus {
+    border-color: var(--focus-color);
+  }
+}
+.lil-gui button:active {
+  background: var(--focus-color);
+}
+
+@font-face {
+  font-family: "lil-gui";
+  src: url("data:application/font-woff;charset=utf-8;base64,d09GRgABAAAAAAUsAAsAAAAACJwAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAABHU1VCAAABCAAAAH4AAADAImwmYE9TLzIAAAGIAAAAPwAAAGBKqH5SY21hcAAAAcgAAAD0AAACrukyyJBnbHlmAAACvAAAAF8AAACEIZpWH2hlYWQAAAMcAAAAJwAAADZfcj2zaGhlYQAAA0QAAAAYAAAAJAC5AHhobXR4AAADXAAAABAAAABMAZAAAGxvY2EAAANsAAAAFAAAACgCEgIybWF4cAAAA4AAAAAeAAAAIAEfABJuYW1lAAADoAAAASIAAAIK9SUU/XBvc3QAAATEAAAAZgAAAJCTcMc2eJxVjbEOgjAURU+hFRBK1dGRL+ALnAiToyMLEzFpnPz/eAshwSa97517c/MwwJmeB9kwPl+0cf5+uGPZXsqPu4nvZabcSZldZ6kfyWnomFY/eScKqZNWupKJO6kXN3K9uCVoL7iInPr1X5baXs3tjuMqCtzEuagm/AAlzQgPAAB4nGNgYRBlnMDAysDAYM/gBiT5oLQBAwuDJAMDEwMrMwNWEJDmmsJwgCFeXZghBcjlZMgFCzOiKOIFAB71Bb8AeJy1kjFuwkAQRZ+DwRAwBtNQRUGKQ8OdKCAWUhAgKLhIuAsVSpWz5Bbkj3dEgYiUIszqWdpZe+Z7/wB1oCYmIoboiwiLT2WjKl/jscrHfGg/pKdMkyklC5Zs2LEfHYpjcRoPzme9MWWmk3dWbK9ObkWkikOetJ554fWyoEsmdSlt+uR0pCJR34b6t/TVg1SY3sYvdf8vuiKrpyaDXDISiegp17p7579Gp3p++y7HPAiY9pmTibljrr85qSidtlg4+l25GLCaS8e6rRxNBmsnERunKbaOObRz7N72ju5vdAjYpBXHgJylOAVsMseDAPEP8LYoUHicY2BiAAEfhiAGJgZWBgZ7RnFRdnVJELCQlBSRlATJMoLV2DK4glSYs6ubq5vbKrJLSbGrgEmovDuDJVhe3VzcXFwNLCOILB/C4IuQ1xTn5FPilBTj5FPmBAB4WwoqAHicY2BkYGAA4sk1sR/j+W2+MnAzpDBgAyEMQUCSg4EJxAEAwUgFHgB4nGNgZGBgSGFggJMhDIwMqEAYAByHATJ4nGNgAIIUNEwmAABl3AGReJxjYAACIQYlBiMGJ3wQAEcQBEV4nGNgZGBgEGZgY2BiAAEQyQWEDAz/wXwGAAsPATIAAHicXdBNSsNAHAXwl35iA0UQXYnMShfS9GPZA7T7LgIu03SSpkwzYTIt1BN4Ak/gKTyAeCxfw39jZkjymzcvAwmAW/wgwHUEGDb36+jQQ3GXGot79L24jxCP4gHzF/EIr4jEIe7wxhOC3g2TMYy4Q7+Lu/SHuEd/ivt4wJd4wPxbPEKMX3GI5+DJFGaSn4qNzk8mcbKSR6xdXdhSzaOZJGtdapd4vVPbi6rP+cL7TGXOHtXKll4bY1Xl7EGnPtp7Xy2n00zyKLVHfkHBa4IcJ2oD3cgggWvt/V/FbDrUlEUJhTn/0azVWbNTNr0Ens8de1tceK9xZmfB1CPjOmPH4kitmvOubcNpmVTN3oFJyjzCvnmrwhJTzqzVj9jiSX911FjeAAB4nG3HMRKCMBBA0f0giiKi4DU8k0V2GWbIZDOh4PoWWvq6J5V8If9NVNQcaDhyouXMhY4rPTcG7jwYmXhKq8Wz+p762aNaeYXom2n3m2dLTVgsrCgFJ7OTmIkYbwIbC6vIB7WmFfAAAA==") format("woff");
+}</style><style type="text/css"> body { margin: 0; } </style>
+
+    <link rel="stylesheet" href="./leaflet.css">
+    <!-- <style type="text/css"> .leaflet-container { background-color: rgba(0, 0, 0, 0.4); } </style> -->
+
+    <!-- copied node_modules/leaflet-geosearch/assets/css/leaflet.css -->
+    <link rel="stylesheet" href="./assets/css/leaflet.css">
+
+    <!-- <script type="module" src="https://cdn.ampproject.org/v0/bento-youtube-1.0.mjs" crossorigin="anonymous"></script> -->
+    <!-- <link rel="stylesheet" href="https://cdn.ampproject.org/v0/bento-youtube-1.0.css" crossorigin="anonymous"> -->
+    <style type="text/css"> bento-youtube { height: 320px; width: 100%; } </style>
 </head>
+
+
 <body>
-    <canvas id="canvas" width="960" height="640"></canvas>
+    <canvas id="viewer" style="width: 100%; height: 100%; touch-action: none;" data-engine="three.js r138" width="1898" height="947"></canvas>
 
-    <script src="../deps/three/build/three.min.js"></script>
-    <script src="../deps/three/examples/js/controls/OrbitControls.js"></script>
-    <script src="../deps/three/examples/js/libs/stats.min.js"></script>
+    <div id="map-wrapper" style="position: absolute; z-index: 100;
+        width: 520px; height: 320px; top: 0px; left: 0px;">
+        <div id="map" style="height: 100%; position: relative;" class="leaflet-container leaflet-retina leaflet-fade-anim leaflet-grab leaflet-touch-drag" tabindex="0"><div class="leaflet-pane leaflet-map-pane" style="transform: translate3d(0px, 0px, 0px);"><div class="leaflet-pane leaflet-tile-pane"><div class="leaflet-layer " style="z-index: 1; opacity: 1;"><div class="leaflet-tile-container leaflet-zoom-animated" style="z-index: 18; transform: translate3d(0px, 0px, 0px) scale(1);"><img alt="" role="presentation" src="https://c.tile.openstreetmap.org/12/2257/2458.png" class="leaflet-tile" style="width: 256px; height: 256px; transform: translate3d(139px, -163px, 0px); opacity: 1;"><img alt="" role="presentation" src="https://a.tile.openstreetmap.org/12/2257/2459.png" class="leaflet-tile" style="width: 256px; height: 256px; transform: translate3d(139px, 93px, 0px); opacity: 1;"><img alt="" role="presentation" src="https://b.tile.openstreetmap.org/12/2256/2458.png" class="leaflet-tile" style="width: 256px; height: 256px; transform: translate3d(-117px, -163px, 0px); opacity: 1;"><img alt="" role="presentation" src="https://a.tile.openstreetmap.org/12/2258/2458.png" class="leaflet-tile" style="width: 256px; height: 256px; transform: translate3d(395px, -163px, 0px); opacity: 1;"><img alt="" role="presentation" src="https://c.tile.openstreetmap.org/12/2256/2459.png" class="leaflet-tile" style="width: 256px; height: 256px; transform: translate3d(-117px, 93px, 0px); opacity: 1;"><img alt="" role="presentation" src="https://b.tile.openstreetmap.org/12/2258/2459.png" class="leaflet-tile" style="width: 256px; height: 256px; transform: translate3d(395px, 93px, 0px); opacity: 1;"></div></div></div><div class="leaflet-pane leaflet-shadow-pane"><img src="http://127.0.0.1:5500/examples/geo-viewer/io/images/marker-shadow.png" class="leaflet-marker-shadow leaflet-zoom-animated" alt="" style="margin-left: -12px; margin-top: -41px; width: 41px; height: 41px; transform: translate3d(260px, 160px, 0px);"></div><div class="leaflet-pane leaflet-overlay-pane"><svg pointer-events="none" class="leaflet-zoom-animated" width="624" height="384" viewBox="-52 -32 624 384" style="transform: translate3d(-52px, -32px, 0px);"><g><path class="leaflet-interactive" stroke="white" stroke-opacity="1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="white" fill-opacity="0.2" fill-rule="evenodd" d="M148 49L372 49L372 272L148 272z"></path><path class="leaflet-interactive" stroke="red" stroke-opacity="1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M260 160L483 160"></path><path class="leaflet-interactive" stroke="green" stroke-opacity="1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M260 160L260 -32"></path><path class="leaflet-interactive" stroke="white" stroke-opacity="1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M260 160L148 272"></path><path class="leaflet-interactive" stroke="#3388ff" stroke-opacity="1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" d="M242 146L260 160L278 146"></path></g></svg></div><div class="leaflet-pane leaflet-marker-pane"><img src="http://127.0.0.1:5500/examples/geo-viewer/io/images/marker-icon-2x.png" class="leaflet-marker-icon leaflet-zoom-animated leaflet-interactive" alt="" tabindex="0" style="margin-left: -12px; margin-top: -41px; width: 25px; height: 41px; transform: translate3d(260px, 160px, 0px); z-index: 160;"></div><div class="leaflet-pane leaflet-tooltip-pane"><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-right" style="opacity: 0.9; transform: translate3d(204px, 200px, 0px);">5.0 km</div><div class="leaflet-tooltip leaflet-zoom-animated leaflet-tooltip-right" style="opacity: 0.9; transform: translate3d(276px, 116px, 0px);">lat lng: -33.9625 18.4107</div></div><div class="leaflet-pane leaflet-popup-pane"></div><div class="leaflet-proxy leaflet-zoom-animated" style="transform: translate3d(577913px, 629571px, 0px) scale(2048);"></div></div><div class="leaflet-control-container"><div class="leaflet-top leaflet-left"><div class="leaflet-control-zoom leaflet-bar leaflet-control"><a class="leaflet-control-zoom-in" href="#" title="Zoom in" role="button" aria-label="Zoom in">+</a><a class="leaflet-control-zoom-out" href="#" title="Zoom out" role="button" aria-label="Zoom out">−</a></div><div class="geosearch leaflet-bar leaflet-control leaflet-control-geosearch bar"><a class="leaflet-bar-part leaflet-bar-part-single" title="Search for" href="#"></a></div></div><div class="leaflet-top leaflet-right"></div><div class="leaflet-bottom leaflet-left"></div><div class="leaflet-bottom leaflet-right"><div class="leaflet-control-attribution leaflet-control"><a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> | © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors</div></div><div class="leaflet-control-geosearch bar"><form class=" "><input class="glass " type="text" placeholder="Search for"><a class="reset">X</a><div class="results"></div></form></div></div></div>
+    </div>
+    <div id="media-wrapper" style="position: absolute; z-index: 100; display: none; background: #424242;
+        width: 520px; height: 320px; top: 320px; left: 0px;">
+        <div id="media" style="height: 100%;"><bento-youtube data-videoid="0ITuQcoLXeE"></bento-youtube></div>
+    </div>
 
-    <script src="../../dist/three-geo.min.js"></script>
-    <script type="module" src="./test.js"></script>
-
+    <script src="../../deps/three/build/three.min.js"></script>
+    <script src="../../deps/three/examples/js/controls/OrbitControls.js"></script>
     <script type="module">
-    (async () => {
-        /*
-            Data Read Code
-        */
-        let cth;
-
-        // Cloud Height
-        try {
-            const response = await fetch('./cth.csv');
-            const csvData = await response.text();
-
-            const rows = csvData.split('\n');
-            const jsonArray1 = rows.map(row => row.split(',').map(element => parseFloat(element)));
-            cth = jsonArray1 ;
-        } catch (error) {
-            console.error('Error:', error);
-        }
-
-        let cot;
-
-        // Cloud Thickness
-        try {
-            const response = await fetch('./cot.csv');
-            const csvData = await response.text();
-
-            const rows = csvData.split('\n');
-            const jsonArray2 = rows.map(row => row.split(',').map(element => parseFloat(element)));
-
-            cot = jsonArray2;
-        } catch (error) {
-            console.error('Error:', error);
-        }
-        console.log(cth);
-        /*
-            Clouds Calculate Code
-        */
-       // 경도 1도는 90km로, 위도 1도는 110km로 간주
-        const spot =[37.066535,126.0779692];
-        const rad =50;
-        const radlat=rad/110;
-        const radlng=rad/90;
-
-        const spots = [[spot[1]-radlng],[spot[0]+radlat]];
-
-        const pix_lng = parseInt((spot[1]-125-radlng)/0.0211);
-        const pix_lat = parseInt((43-spot[0]-radlat)/0.0184);
-
-        const pix_radlng = parseInt((2*rad/90/0.0211));
-        const pix_radlat = parseInt((2*rad/110/0.0184));
-
-        //                       위도                                                     경도
-        let cth_result = cth.slice(541-pix_lat-pix_radlat, 541-pix_lat).map(row => row.slice(pix_lng, pix_lng+pix_radlng));
-        let cot_result = cot.slice(541-pix_lat-pix_radlat, 541-pix_lat).map(row => row.slice(pix_lng, pix_lng+pix_radlng));
-
-        const onepix_lng = 1/pix_radlng;
-        const onepix_lat = 1/pix_radlat;
-
-        /*
-            Map Generation Code
-        */
-       // 경도 1도는 90km로, 위도 1도는 110km로 간주
-        THREE.Object3D.DefaultUp = new THREE.Vector3(0, 0, 1);
-
-        const canvas = document.getElementById("canvas");
-        const camera = new THREE.PerspectiveCamera(75, canvas.width/canvas.height, 0.1, 1000);
-        camera.position.set(0, 0, 1.5);
-
-        const renderer = new THREE.WebGLRenderer({ canvas });
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-        const scene = new THREE.Scene();
-
-        const walls = new THREE.LineSegments(
-            new THREE.EdgesGeometry(new THREE.BoxBufferGeometry(1, 1, 1)),
-            new THREE.LineBasicMaterial({color: 0xcccccc}));
-        walls.position.set(0, 0, 0);
-
-        scene.add(walls);
-
-        const stats = new Stats();
-        stats.showPanel(1); // 0: fps, 1: ms, 2: mb, 3+: custom
-        document.body.appendChild(stats.dom);
-        const render = () => {
-            stats.update();
-            renderer.render(scene, camera);
-        };
-
-        controls.addEventListener('change', render);
-        render(); // first time
-
-        const ioToken = 'pk.eyJ1IjoiamRldmVsIiwiYSI6ImNqemFwaGJoZjAyc3MzbXA1OGNuODBxa2EifQ.7M__SgfWZGJuEiSqbBXdoQ';
-
-        const tgeo = new ThreeGeo({
-            tokenMapbox: 'pk.eyJ1Ijoic295c2F1Y2VjcmFiIiwiYSI6ImNscGViNnk3NDE3YmcyanFybzZmNDc4ZjEifQ.Gw-72irSpUY1oHYSqoTz8Q', // <---- set your Mapbox API token here
-        });
-
-        if (!window.location.origin.startsWith('https://w3reality.github.io') && tgeo.tokenMapbox === ioToken) {
-            const warning = 'Please set your Mapbox API token in ThreeGeo constructor.';
-            alert(warning);
-            throw warning;
-        }
-
-        const terrain = await tgeo.getTerrainRgb(
-            spot,              // [lat, lng]
-            rad,               // radius of bounding circle (km)
-            12);               // zoom resolution
-
-        scene.add(terrain);
-
-
-             
-
-
-
-        /*
-            Cloud Generation Code
-        */
-        class cloud {
-            constructor(x,y,z,c){
-                this.x=x;
-                this.y=y;
-                this.z=z;
-                const box1Geometry = new THREE.BoxGeometry(1/(rad), 1/(rad), c);
-                const box1Material = new THREE.MeshBasicMaterial( { color: 0xffffff, transparent: true, opacity: 0.3 } );
-                const box_1 = new THREE.Mesh(box1Geometry, box1Material);
-                box_1.position.set(this.x, this.y, this.z);
-                scene.add(box_1);
-            }
-        }
-        console.log(cth_result);
-        let clouds = [];
-        let i=0;
-        let j=0
-        let c=0;
-        //push할때 : 경도(+), 위도(+), 높이(+)임
-        console.log(pix_radlat);
-        for(i=0; i<pix_radlat; i++){
-            for(j=0;j<pix_radlng;j++){
-                if((cth_result[i][j]/(2*rad))!=NaN){
-                    let co = cot_result[i][j]/(2*rad)/1000;
-                    if(co>0.0001){
-                        co=0.0001;
-                    }
-                    try {
-                    clouds.push(new cloud((j/pix_radlng)-0.5+0.002,(i/pix_radlat)-0.5+0.002,cth_result[i][j]/(2*rad),co*150))
-                    }
-                    catch{
-                        continue;
-                    }
-                }
-            }
-        }
-        
-        
-
-
-
-
-        render();
-    })();
+        import App from './app.esm.js';
+        const _ = new App();
     </script>
-</body>
+<!-- Code injected by live-server -->
+<script>
+	// <![CDATA[  <-- For SVG support
+	if ('WebSocket' in window) {
+		(function () {
+			function refreshCSS() {
+				var sheets = [].slice.call(document.getElementsByTagName("link"));
+				var head = document.getElementsByTagName("head")[0];
+				for (var i = 0; i < sheets.length; ++i) {
+					var elem = sheets[i];
+					var parent = elem.parentElement || head;
+					parent.removeChild(elem);
+					var rel = elem.rel;
+					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
+						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
+						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
+					}
+					parent.appendChild(elem);
+				}
+			}
+			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
+			var address = protocol + window.location.host + window.location.pathname + '/ws';
+			var socket = new WebSocket(address);
+			socket.onmessage = function (msg) {
+				if (msg.data == 'reload') window.location.reload();
+				else if (msg.data == 'refreshcss') refreshCSS();
+			};
+			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
+				console.log('Live reload enabled.');
+				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
+			}
+		})();
+	}
+	else {
+		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
+	}
+	// ]]>
+</script>
+
+<div class="lil-gui allow-touch-styles root autoPlace" style="--width: 240px;"><div class="title" role="button" aria-expanded="true" tabindex="0">geo-viewer</div><div class="children"><div class="controller option"><div class="name" id="lil-gui-name-1">Terrain</div><div class="widget"><select aria-labelledby="lil-gui-name-1"><option>Satellite</option><option>Wireframe</option><option>Contours</option></select><div class="display">Satellite</div></div></div><div class="controller function"><div class="widget"><button><div class="name" id="lil-gui-name-2">Capture Now</div></button></div></div><div class="controller boolean"><div class="name" id="lil-gui-name-3">Grids</div><label class="widget"><input type="checkbox" aria-labelledby="lil-gui-name-3"></label></div><div class="controller boolean"><div class="name" id="lil-gui-name-4">Orbit</div><label class="widget"><input type="checkbox" aria-labelledby="lil-gui-name-4"></label></div><div class="controller boolean"><div class="name" id="lil-gui-name-5">Laser</div><label class="widget"><input type="checkbox" aria-labelledby="lil-gui-name-5"></label></div><div class="controller boolean"><div class="name" id="lil-gui-name-6">Map</div><label class="widget"><input type="checkbox" aria-labelledby="lil-gui-name-6"></label></div><div class="controller option"><div class="name" id="lil-gui-name-7">Location</div><div class="widget"><select aria-labelledby="lil-gui-name-7"><option>(none)</option><option>Table Mountain</option><option>Eiger</option><option>Colorado River</option><option>Mount Fuji</option><option>k2</option></select><div class="display">Table Mountain</div></div></div><div class="controller function"><div class="widget"><button><div class="name" id="lil-gui-name-8">Source Code</div></button></div></div><div style="margin: 4px;"><div><div style="top: 0px; left: 0px; cursor: pointer; opacity: 0.9; display: inline-block;"><canvas width="80" height="48" style="width: 80px; height: 48px; display: none;"></canvas><canvas width="80" height="48" style="width: 80px; height: 48px; display: block;"></canvas><canvas width="80" height="48" style="width: 80px; height: 48px; display: none;"></canvas></div><div>---- Terrain ----</div><div><div>lat lng: (-33.9625, 18.4107)</div><div>satellite zoom resolution: 13</div><div>DEM resolution: 11</div></div><div>[left-click]: pick a point for measurement</div><div>[right-click]: set an orbital axis</div><div>---- Map ----</div><div><div>zoom: 12</div></div><div>[left-click]: build a new terrain</div><div>---- Camera ----</div><div><div>pos [km]: (0.000, -0.000, 10.607)</div><div>rot [rad]: (0.000, 0.000, 0.000)</div></div><div>---- Measurement [km] ----</div><div></div></div></div></div></div></body>
 </html>
